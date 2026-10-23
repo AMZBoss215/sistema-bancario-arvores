@@ -198,9 +198,14 @@ class ArvoreRubroNegra:
         self.quantidade_nos += 1
 
         if self.modo_detalhado:
-            self.estatisticas.registrar_log(
-                f"[RUBRO-NEGRA] Insercao da conta {conta.numero_conta} ({conta.titular}) como novo no VERMELHO."
+            arv_pos = self.renderizar_subarvore(self.raiz)
+            msg_ins = (
+                f"[INSERCAO BST - NOVO NO VERMELHO]\n"
+                f"  * Conta {conta.numero_conta} ({conta.titular}) inserida como novo no VERMELHO.\n\n"
+                f"  >>> Estrutura da arvore logo apos a insercao da conta {conta.numero_conta} (antes do rebalanceamento):\n"
+                + "\n".join("    " + l for l in arv_pos.splitlines())
             )
+            self.estatisticas.registrar_log(msg_ins)
 
         self._inserir_fixup(z)
         return True
@@ -211,6 +216,9 @@ class ArvoreRubroNegra:
                 u = z.pai.pai.direita
                 if u.cor == Cor.VERMELHO:
                     antes_txt = self.renderizar_subarvore(z.pai.pai) if self.modo_detalhado else ""
+                    pai_chave = z.pai.chave
+                    tio_chave = u.chave
+                    avo_chave = z.pai.pai.chave
                     z.pai.cor = Cor.PRETO
                     u.cor = Cor.PRETO
                     z.pai.pai.cor = Cor.VERMELHO
@@ -219,11 +227,11 @@ class ArvoreRubroNegra:
                         depois_txt = self.renderizar_subarvore(z.pai.pai)
                         msg = (
                             f"[REBALANCEAMENTO RUBRO-NEGRA - CASO 1: TIO VERMELHO]\n"
-                            f"  * Conflito Vermelho-Vermelho: No ({z.chave}) e Pai ({z.pai.chave})\n"
-                            f"  * Tio ({u.chave}) e Vermelho -> Aplicada Recoloracao:\n"
-                            f"      - Pai ({z.pai.chave}) passa a ser PRETO\n"
-                            f"      - Tio ({u.chave}) passa a ser PRETO\n"
-                            f"      - Avo ({z.pai.pai.chave}) passa a ser VERMELHO\n\n"
+                            f"  * Conflito Vermelho-Vermelho: No ({z.chave}) e Pai ({pai_chave})\n"
+                            f"  * Tio ({tio_chave}) e VERMELHO -> Solucao: Recoloracao (sem rotacao):\n"
+                            f"      - Pai ({pai_chave}) passa a ser PRETO\n"
+                            f"      - Tio ({tio_chave}) passa a ser PRETO\n"
+                            f"      - Avo ({avo_chave}) passa a ser VERMELHO\n\n"
                             f"  >>> Subarvore ANTES da Recoloracao:\n"
                             + "\n".join("    " + l for l in antes_txt.splitlines()) +
                             f"\n\n  >>> Subarvore DEPOIS da Recoloracao:\n"
@@ -233,46 +241,53 @@ class ArvoreRubroNegra:
                     z = z.pai.pai
                 else:
                     if z == z.pai.direita:
-                        antes_txt = self.renderizar_subarvore(z.pai.pai) if self.modo_detalhado else ""
+                        antes_lr_txt = self.renderizar_subarvore(z.pai.pai) if self.modo_detalhado else ""
+                        pai_lr = z.pai
                         z = z.pai
                         self._rotacao_esquerda(z)
                         if self.modo_detalhado:
-                            depois_txt = self.renderizar_subarvore(z.pai.pai)
+                            depois_lr_txt = self.renderizar_subarvore(z.pai.pai)
                             msg = (
                                 f"[REBALANCEAMENTO RUBRO-NEGRA - CASO 2: TIO PRETO EM ZIGUE-ZAGUE (LR)]\n"
-                                f"  * Conflito no No ({z.direita.chave}) com Pai ({z.chave})\n"
-                                f"  * Passo 1: Rotacao a Esquerda no Pai ({z.chave}) -> Alinhamento em Caso LL\n\n"
-                                f"  >>> Subarvore ANTES da Rotacao:\n"
-                                + "\n".join("    " + l for l in antes_txt.splitlines()) +
-                                f"\n\n  >>> Subarvore APOS PASSO 1 (Alinhada em LL):\n"
-                                + "\n".join("    " + l for l in depois_txt.splitlines())
+                                f"  * Conflito no No ({z.direita.chave}) com Pai ({pai_lr.chave}) em formato Zigue-Zague (LR)\n"
+                                f"  * Passo Preparatorio: Rotacao Simples a Esquerda no Pai ({pai_lr.chave}) -> Transforma no Caso LL\n\n"
+                                f"  >>> Subarvore ANTES da Rotacao no Pai (Conflito LR):\n"
+                                + "\n".join("    " + l for l in antes_lr_txt.splitlines()) +
+                                f"\n\n  >>> Subarvore APOS Rotacao no Pai (Alinhada em Linha Reta LL):\n"
+                                + "\n".join("    " + l for l in depois_lr_txt.splitlines())
                             )
                             self.estatisticas.registrar_log(msg)
                     antes_txt = self.renderizar_subarvore(z.pai.pai) if self.modo_detalhado else ""
                     avo = z.pai.pai
                     pai = z.pai
+                    self._rotacao_direita(avo)
+                    pos_rot_txt = self.renderizar_subarvore(pai) if self.modo_detalhado else ""
                     pai.cor = Cor.PRETO
                     avo.cor = Cor.VERMELHO
                     self.estatisticas.recoloracoes += 2
-                    self._rotacao_direita(avo)
                     if self.modo_detalhado:
-                        depois_txt = self.renderizar_subarvore(pai)
+                        pos_recolor_txt = self.renderizar_subarvore(pai)
                         msg = (
                             f"[REBALANCEAMENTO RUBRO-NEGRA - CASO 3: TIO PRETO EM LINHA RETA (LL)]\n"
-                            f"  * Conflito no No ({z.chave}) com Pai ({pai.chave})\n"
-                            f"  * Acao: Rotacao a Direita no Avo ({avo.chave}) e Ajuste de Cores:\n"
-                            f"      - Pai ({pai.chave}) passa a ser PRETO\n"
-                            f"      - Avo ({avo.chave}) passa a ser VERMELHO\n\n"
-                            f"  >>> Subarvore ANTES da Rotacao e Recoloracao:\n"
+                            f"  * Conflito no No ({z.chave}) com Pai ({pai.chave}) - Ambos VERMELHOS\n"
+                            f"  * Tio e PRETO (ou NIL) em linha reta -> Rebalanceamento em 2 Passos:\n"
+                            f"      - Passo 1: Rotacao Simples a Direita no Avo ({avo.chave})\n"
+                            f"      - Passo 2: Ajuste de Cores: Pai ({pai.chave}) -> PRETO, Avo ({avo.chave}) -> VERMELHO\n\n"
+                            f"  >>> Estado Inicial: Subarvore ANTES da Rotacao e Recoloracao:\n"
                             + "\n".join("    " + l for l in antes_txt.splitlines()) +
-                            f"\n\n  >>> Subarvore DEPOIS da Rotacao e Recoloracao (Balanceada):\n"
-                            + "\n".join("    " + l for l in depois_txt.splitlines())
+                            f"\n\n  >>> Passo 1: Apos Rotacao a Direita no Avo ({avo.chave}) [Estrutura Girada, Cores Originais]:\n"
+                            + "\n".join("    " + l for l in pos_rot_txt.splitlines()) +
+                            f"\n\n  >>> Passo 2: Apos Ajuste de Cores / Recoloracao [Pai ({pai.chave}) -> PRETO, Avo ({avo.chave}) -> VERMELHO]:\n"
+                            + "\n".join("    " + l for l in pos_recolor_txt.splitlines())
                         )
                         self.estatisticas.registrar_log(msg)
             else:
                 u = z.pai.pai.esquerda
                 if u.cor == Cor.VERMELHO:
                     antes_txt = self.renderizar_subarvore(z.pai.pai) if self.modo_detalhado else ""
+                    pai_chave = z.pai.chave
+                    tio_chave = u.chave
+                    avo_chave = z.pai.pai.chave
                     z.pai.cor = Cor.PRETO
                     u.cor = Cor.PRETO
                     z.pai.pai.cor = Cor.VERMELHO
@@ -281,11 +296,11 @@ class ArvoreRubroNegra:
                         depois_txt = self.renderizar_subarvore(z.pai.pai)
                         msg = (
                             f"[REBALANCEAMENTO RUBRO-NEGRA - CASO 1: TIO VERMELHO]\n"
-                            f"  * Conflito Vermelho-Vermelho: No ({z.chave}) e Pai ({z.pai.chave})\n"
-                            f"  * Tio ({u.chave}) e Vermelho -> Aplicada Recoloracao:\n"
-                            f"      - Pai ({z.pai.chave}) passa a ser PRETO\n"
-                            f"      - Tio ({u.chave}) passa a ser PRETO\n"
-                            f"      - Avo ({z.pai.pai.chave}) passa a ser VERMELHO\n\n"
+                            f"  * Conflito Vermelho-Vermelho: No ({z.chave}) e Pai ({pai_chave})\n"
+                            f"  * Tio ({tio_chave}) e VERMELHO -> Solucao: Recoloracao (sem rotacao):\n"
+                            f"      - Pai ({pai_chave}) passa a ser PRETO\n"
+                            f"      - Tio ({tio_chave}) passa a ser PRETO\n"
+                            f"      - Avo ({avo_chave}) passa a ser VERMELHO\n\n"
                             f"  >>> Subarvore ANTES da Recoloracao:\n"
                             + "\n".join("    " + l for l in antes_txt.splitlines()) +
                             f"\n\n  >>> Subarvore DEPOIS da Recoloracao:\n"
@@ -295,50 +310,62 @@ class ArvoreRubroNegra:
                     z = z.pai.pai
                 else:
                     if z == z.pai.esquerda:
-                        antes_txt = self.renderizar_subarvore(z.pai.pai) if self.modo_detalhado else ""
+                        antes_rl_txt = self.renderizar_subarvore(z.pai.pai) if self.modo_detalhado else ""
+                        pai_rl = z.pai
                         z = z.pai
                         self._rotacao_direita(z)
                         if self.modo_detalhado:
-                            depois_txt = self.renderizar_subarvore(z.pai.pai)
+                            depois_rl_txt = self.renderizar_subarvore(z.pai.pai)
                             msg = (
                                 f"[REBALANCEAMENTO RUBRO-NEGRA - CASO 2: TIO PRETO EM ZIGUE-ZAGUE (RL)]\n"
-                                f"  * Conflito no No ({z.esquerda.chave}) com Pai ({z.chave})\n"
-                                f"  * Passo 1: Rotacao a Direita no Pai ({z.chave}) -> Alinhamento em Caso RR\n\n"
-                                f"  >>> Subarvore ANTES da Rotacao:\n"
-                                + "\n".join("    " + l for l in antes_txt.splitlines()) +
-                                f"\n\n  >>> Subarvore APOS PASSO 1 (Alinhada em RR):\n"
-                                + "\n".join("    " + l for l in depois_txt.splitlines())
+                                f"  * Conflito no No ({z.esquerda.chave}) com Pai ({pai_rl.chave}) em formato Zigue-Zague (RL)\n"
+                                f"  * Passo Preparatorio: Rotacao Simples a Direita no Pai ({pai_rl.chave}) -> Transforma no Caso RR\n\n"
+                                f"  >>> Subarvore ANTES da Rotacao no Pai (Conflito RL):\n"
+                                + "\n".join("    " + l for l in antes_rl_txt.splitlines()) +
+                                f"\n\n  >>> Subarvore APOS Rotacao no Pai (Alinhada em Linha Reta RR):\n"
+                                + "\n".join("    " + l for l in depois_rl_txt.splitlines())
                             )
                             self.estatisticas.registrar_log(msg)
                     antes_txt = self.renderizar_subarvore(z.pai.pai) if self.modo_detalhado else ""
                     avo = z.pai.pai
                     pai = z.pai
+                    self._rotacao_esquerda(avo)
+                    pos_rot_txt = self.renderizar_subarvore(pai) if self.modo_detalhado else ""
                     pai.cor = Cor.PRETO
                     avo.cor = Cor.VERMELHO
                     self.estatisticas.recoloracoes += 2
-                    self._rotacao_esquerda(avo)
                     if self.modo_detalhado:
-                        depois_txt = self.renderizar_subarvore(pai)
+                        pos_recolor_txt = self.renderizar_subarvore(pai)
                         msg = (
                             f"[REBALANCEAMENTO RUBRO-NEGRA - CASO 3: TIO PRETO EM LINHA RETA (RR)]\n"
-                            f"  * Conflito no No ({z.chave}) com Pai ({pai.chave})\n"
-                            f"  * Acao: Rotacao a Esquerda no Avo ({avo.chave}) e Ajuste de Cores:\n"
-                            f"      - Pai ({pai.chave}) passa a ser PRETO\n"
-                            f"      - Avo ({avo.chave}) passa a ser VERMELHO\n\n"
-                            f"  >>> Subarvore ANTES da Rotacao e Recoloracao:\n"
+                            f"  * Conflito no No ({z.chave}) com Pai ({pai.chave}) - Ambos VERMELHOS\n"
+                            f"  * Tio e PRETO (ou NIL) em linha reta -> Rebalanceamento em 2 Passos:\n"
+                            f"      - Passo 1: Rotacao Simples a Esquerda no Avo ({avo.chave})\n"
+                            f"      - Passo 2: Ajuste de Cores: Pai ({pai.chave}) -> PRETO, Avo ({avo.chave}) -> VERMELHO\n\n"
+                            f"  >>> Estado Inicial: Subarvore ANTES da Rotacao e Recoloracao:\n"
                             + "\n".join("    " + l for l in antes_txt.splitlines()) +
-                            f"\n\n  >>> Subarvore DEPOIS da Rotacao e Recoloracao (Balanceada):\n"
-                            + "\n".join("    " + l for l in depois_txt.splitlines())
+                            f"\n\n  >>> Passo 1: Apos Rotacao a Esquerda no Avo ({avo.chave}) [Estrutura Girada, Cores Originais]:\n"
+                            + "\n".join("    " + l for l in pos_rot_txt.splitlines()) +
+                            f"\n\n  >>> Passo 2: Apos Ajuste de Cores / Recoloracao [Pai ({pai.chave}) -> PRETO, Avo ({avo.chave}) -> VERMELHO]:\n"
+                            + "\n".join("    " + l for l in pos_recolor_txt.splitlines())
                         )
                         self.estatisticas.registrar_log(msg)
 
         if self.raiz.cor != Cor.PRETO:
+            antes_raiz_txt = self.renderizar_subarvore(self.raiz) if self.modo_detalhado else ""
             self.raiz.cor = Cor.PRETO
             self.estatisticas.recoloracoes += 1
             if self.modo_detalhado:
-                self.estatisticas.registrar_log(
-                    f"[RUBRO-NEGRA] Raiz ({self.raiz.chave}) recolorida para PRETO para satisfazer a Propriedade 2."
+                depois_raiz_txt = self.renderizar_subarvore(self.raiz)
+                msg = (
+                    f"[AJUSTE FINAL - PROPRIEDADE 2: RAIZ PRETA]\n"
+                    f"  * A raiz ({self.raiz.chave}) era VERMELHA -> Recolorida para PRETO para satisfazer a Propriedade 2.\n\n"
+                    f"  >>> Subarvore ANTES do Ajuste da Raiz:\n"
+                    + "\n".join("    " + l for l in antes_raiz_txt.splitlines()) +
+                    f"\n\n  >>> Subarvore DEPOIS do Ajuste da Raiz (Propriedade 2 Satisfeita):\n"
+                    + "\n".join("    " + l for l in depois_raiz_txt.splitlines())
                 )
+                self.estatisticas.registrar_log(msg)
 
     def _transplant(self, u: NoRB, v: NoRB) -> None:
         if u.pai == self.NIL:
@@ -362,11 +389,6 @@ class ArvoreRubroNegra:
 
         conta_removida = z.conta
         self.quantidade_nos -= 1
-
-        if self.modo_detalhado:
-            self.estatisticas.registrar_log(
-                f"[RUBRO-NEGRA] Conta {numero_conta} localizada para remocao."
-            )
 
         y = z
         y_cor_original = y.cor
@@ -392,7 +414,23 @@ class ArvoreRubroNegra:
             y.esquerda.pai = y
             y.cor = z.cor
 
+        if self.modo_detalhado:
+            arv_pos_rem = self.renderizar_subarvore(self.raiz) if self.raiz != self.NIL else "[Arvore Vazia]"
+            tipo_rem = f"Substituida pelo sucessor em-ordem Conta {y.chave}" if (z.esquerda != self.NIL and z.direita != self.NIL) else "Removida diretamente (possui <= 1 filho)"
+            msg_rem = (
+                f"[REMOCAO BST - EXCLUSAO DA CONTA]\n"
+                f"  * Conta {numero_conta} ({conta_removida.titular}): {tipo_rem}.\n\n"
+                f"  >>> Estrutura da arvore logo apos a saida da conta {numero_conta} (antes do rebalanceamento):\n"
+                + "\n".join("    " + l for l in arv_pos_rem.splitlines())
+            )
+            self.estatisticas.registrar_log(msg_rem)
+
         if y_cor_original == Cor.PRETO:
+            if self.modo_detalhado and self.raiz != self.NIL:
+                self.estatisticas.registrar_log(
+                    f"[REBALANCEAMENTO DE REMOCAO FIXUP]\n"
+                    f"  * No removido/deslocado era PRETO -> Propriedade de altura negra violada (necessario fixup)."
+                )
             self._remover_fixup(x)
 
         return conta_removida
@@ -402,93 +440,189 @@ class ArvoreRubroNegra:
             if x == x.pai.esquerda:
                 w = x.pai.direita
                 if w.cor == Cor.VERMELHO:
+                    antes_c1 = self.renderizar_subarvore(x.pai) if self.modo_detalhado else ""
                     w.cor = Cor.PRETO
                     x.pai.cor = Cor.VERMELHO
                     self.estatisticas.recoloracoes += 2
                     self._rotacao_esquerda(x.pai)
                     if self.modo_detalhado:
-                        self.estatisticas.registrar_log(
-                            f"[REMOCAO RUBRO-NEGRA - CASO 1: IRMAO VERMELHO] Rotacao a Esquerda no Pai ({x.pai.chave}) e inversao de cores."
+                        depois_c1 = self.renderizar_subarvore(w)
+                        msg_c1 = (
+                            f"[REMOCAO RUBRO-NEGRA - CASO 1: IRMAO VERMELHO]\n"
+                            f"  * Irmao ({w.chave if w != self.NIL else 'NIL'}) e VERMELHO.\n"
+                            f"  * Acao: Inversao de cores (Irmao -> PRETO, Pai -> VERMELHO) e Rotacao a Esquerda no Pai ({x.pai.chave}).\n\n"
+                            f"  >>> Subarvore ANTES do Caso 1:\n"
+                            + "\n".join("    " + l for l in antes_c1.splitlines()) +
+                            f"\n\n  >>> Subarvore APOS Caso 1 (Novo irmao e PRETO):\n"
+                            + "\n".join("    " + l for l in depois_c1.splitlines())
                         )
+                        self.estatisticas.registrar_log(msg_c1)
                     w = x.pai.direita
 
                 if w.esquerda.cor == Cor.PRETO and w.direita.cor == Cor.PRETO:
+                    antes_c2 = self.renderizar_subarvore(x.pai) if self.modo_detalhado else ""
                     w.cor = Cor.VERMELHO
                     self.estatisticas.recoloracoes += 1
                     if self.modo_detalhado:
-                        self.estatisticas.registrar_log(
-                            f"[REMOCAO RUBRO-NEGRA - CASO 2: IRMAO PRETO COM AMBOS FILHOS PRETOS] Irmao ({w.chave if w != self.NIL else 'NIL'}) recolorido para VERMELHO."
+                        depois_c2 = self.renderizar_subarvore(x.pai)
+                        msg_c2 = (
+                            f"[REMOCAO RUBRO-NEGRA - CASO 2: IRMAO PRETO COM AMBOS OS FILHOS PRETOS]\n"
+                            f"  * Irmao ({w.chave if w != self.NIL else 'NIL'}) e seus 2 filhos sao PRETOS.\n"
+                            f"  * Acao: Irmao passa a ser VERMELHO. O no duplo-preto sobe para o Pai ({x.pai.chave if x.pai != self.NIL else 'RAIZ'}).\n\n"
+                            f"  >>> Subarvore ANTES da Recoloracao do Irmao:\n"
+                            + "\n".join("    " + l for l in antes_c2.splitlines()) +
+                            f"\n\n  >>> Subarvore DEPOIS da Recoloracao do Irmao:\n"
+                            + "\n".join("    " + l for l in depois_c2.splitlines())
                         )
+                        self.estatisticas.registrar_log(msg_c2)
                     x = x.pai
                 else:
                     if w.direita.cor == Cor.PRETO:
+                        antes_c3 = self.renderizar_subarvore(w) if self.modo_detalhado else ""
                         w.esquerda.cor = Cor.PRETO
                         w.cor = Cor.VERMELHO
                         self.estatisticas.recoloracoes += 2
                         self._rotacao_direita(w)
                         if self.modo_detalhado:
-                            self.estatisticas.registrar_log(
-                                f"[REMOCAO RUBRO-NEGRA - CASO 3: IRMAO PRETO COM FILHO DIREITO PRETO] Rotacao a Direita no Irmao ({w.chave if w != self.NIL else 'NIL'})."
+                            depois_c3 = self.renderizar_subarvore(w.pai)
+                            msg_c3 = (
+                                f"[REMOCAO RUBRO-NEGRA - CASO 3: IRMAO PRETO EM ZIGUE-ZAGUE (RL)]\n"
+                                f"  * Filho direito do irmao e PRETO, filho esquerdo e VERMELHO.\n"
+                                f"  * Acao: Inversao de cores e Rotacao a Direita no Irmao -> Transforma em Caso 4.\n\n"
+                                f"  >>> Subarvore do Irmao ANTES da Rotacao:\n"
+                                + "\n".join("    " + l for l in antes_c3.splitlines()) +
+                                f"\n\n  >>> Subarvore do Irmao APOS Rotacao (Alinhada no Caso 4):\n"
+                                + "\n".join("    " + l for l in depois_c3.splitlines())
                             )
+                            self.estatisticas.registrar_log(msg_c3)
                         w = x.pai.direita
 
-                    w.cor = x.pai.cor
-                    x.pai.cor = Cor.PRETO
+                    antes_c4 = self.renderizar_subarvore(x.pai) if self.modo_detalhado else ""
+                    pai_ref = x.pai
+                    pai_cor_orig = pai_ref.cor
+                    self._rotacao_esquerda(pai_ref)
+                    pos_rot_c4 = self.renderizar_subarvore(w) if self.modo_detalhado else ""
+                    w.cor = pai_cor_orig
+                    pai_ref.cor = Cor.PRETO
                     w.direita.cor = Cor.PRETO
                     self.estatisticas.recoloracoes += 3
-                    self._rotacao_esquerda(x.pai)
                     if self.modo_detalhado:
-                        self.estatisticas.registrar_log(
-                            f"[REMOCAO RUBRO-NEGRA - CASO 4: IRMAO PRETO COM FILHO DIREITO VERMELHO] Rotacao a Esquerda no Pai ({x.pai.chave}) e resolucao do duplo preto."
+                        pos_rec_c4 = self.renderizar_subarvore(w)
+                        msg_c4 = (
+                            f"[REMOCAO RUBRO-NEGRA - CASO 4: IRMAO PRETO COM FILHO EXTERNO VERMELHO (RR)]\n"
+                            f"  * Filho direito do irmao e VERMELHO.\n"
+                            f"  * Passo 1: Rotacao a Esquerda no Pai ({pai_ref.chave})\n"
+                            f"  * Passo 2: Ajuste de Cores (Irmao assume cor do pai, Pai e Filho Direito passam a PRETO)\n\n"
+                            f"  >>> Subarvore ANTES da Rotacao e Ajuste:\n"
+                            + "\n".join("    " + l for l in antes_c4.splitlines()) +
+                            f"\n\n  >>> Passo 1: Apos Rotacao a Esquerda no Pai ({pai_ref.chave}) [Estrutura Girada]:\n"
+                            + "\n".join("    " + l for l in pos_rot_c4.splitlines()) +
+                            f"\n\n  >>> Passo 2: Apos Ajuste de Cores (Duplo-Preto Eliminado):\n"
+                            + "\n".join("    " + l for l in pos_rec_c4.splitlines())
                         )
+                        self.estatisticas.registrar_log(msg_c4)
                     x = self.raiz
             else:
                 w = x.pai.esquerda
                 if w.cor == Cor.VERMELHO:
+                    antes_c1 = self.renderizar_subarvore(x.pai) if self.modo_detalhado else ""
                     w.cor = Cor.PRETO
                     x.pai.cor = Cor.VERMELHO
                     self.estatisticas.recoloracoes += 2
                     self._rotacao_direita(x.pai)
                     if self.modo_detalhado:
-                        self.estatisticas.registrar_log(
-                            f"[REMOCAO RUBRO-NEGRA - CASO 1: IRMAO VERMELHO] Rotacao a Direita no Pai ({x.pai.chave}) e inversao de cores."
+                        depois_c1 = self.renderizar_subarvore(w)
+                        msg_c1 = (
+                            f"[REMOCAO RUBRO-NEGRA - CASO 1: IRMAO VERMELHO]\n"
+                            f"  * Irmao ({w.chave if w != self.NIL else 'NIL'}) e VERMELHO.\n"
+                            f"  * Acao: Inversao de cores (Irmao -> PRETO, Pai -> VERMELHO) e Rotacao a Direita no Pai ({x.pai.chave}).\n\n"
+                            f"  >>> Subarvore ANTES do Caso 1:\n"
+                            + "\n".join("    " + l for l in antes_c1.splitlines()) +
+                            f"\n\n  >>> Subarvore APOS Caso 1 (Novo irmao e PRETO):\n"
+                            + "\n".join("    " + l for l in depois_c1.splitlines())
                         )
+                        self.estatisticas.registrar_log(msg_c1)
                     w = x.pai.esquerda
 
                 if w.direita.cor == Cor.PRETO and w.esquerda.cor == Cor.PRETO:
+                    antes_c2 = self.renderizar_subarvore(x.pai) if self.modo_detalhado else ""
                     w.cor = Cor.VERMELHO
                     self.estatisticas.recoloracoes += 1
                     if self.modo_detalhado:
-                        self.estatisticas.registrar_log(
-                            f"[REMOCAO RUBRO-NEGRA - CASO 2: IRMAO PRETO COM AMBOS FILHOS PRETOS] Irmao ({w.chave if w != self.NIL else 'NIL'}) recolorido para VERMELHO."
+                        depois_c2 = self.renderizar_subarvore(x.pai)
+                        msg_c2 = (
+                            f"[REMOCAO RUBRO-NEGRA - CASO 2: IRMAO PRETO COM AMBOS OS FILHOS PRETOS]\n"
+                            f"  * Irmao ({w.chave if w != self.NIL else 'NIL'}) e seus 2 filhos sao PRETOS.\n"
+                            f"  * Acao: Irmao passa a ser VERMELHO. O no duplo-preto sobe para o Pai ({x.pai.chave if x.pai != self.NIL else 'RAIZ'}).\n\n"
+                            f"  >>> Subarvore ANTES da Recoloracao do Irmao:\n"
+                            + "\n".join("    " + l for l in antes_c2.splitlines()) +
+                            f"\n\n  >>> Subarvore DEPOIS da Recoloracao do Irmao:\n"
+                            + "\n".join("    " + l for l in depois_c2.splitlines())
                         )
+                        self.estatisticas.registrar_log(msg_c2)
                     x = x.pai
                 else:
                     if w.esquerda.cor == Cor.PRETO:
+                        antes_c3 = self.renderizar_subarvore(w) if self.modo_detalhado else ""
                         w.direita.cor = Cor.PRETO
                         w.cor = Cor.VERMELHO
                         self.estatisticas.recoloracoes += 2
                         self._rotacao_esquerda(w)
                         if self.modo_detalhado:
-                            self.estatisticas.registrar_log(
-                                f"[REMOCAO RUBRO-NEGRA - CASO 3: IRMAO PRETO COM FILHO ESQUERDO PRETO] Rotacao a Esquerda no Irmao ({w.chave if w != self.NIL else 'NIL'})."
+                            depois_c3 = self.renderizar_subarvore(w.pai)
+                            msg_c3 = (
+                                f"[REMOCAO RUBRO-NEGRA - CASO 3: IRMAO PRETO EM ZIGUE-ZAGUE (LR)]\n"
+                                f"  * Filho esquerdo do irmao e PRETO, filho direito e VERMELHO.\n"
+                                f"  * Acao: Inversao de cores e Rotacao a Esquerda no Irmao -> Transforma em Caso 4.\n\n"
+                                f"  >>> Subarvore do Irmao ANTES da Rotacao:\n"
+                                + "\n".join("    " + l for l in antes_c3.splitlines()) +
+                                f"\n\n  >>> Subarvore do Irmao APOS Rotacao (Alinhada no Caso 4):\n"
+                                + "\n".join("    " + l for l in depois_c3.splitlines())
                             )
+                            self.estatisticas.registrar_log(msg_c3)
                         w = x.pai.esquerda
 
-                    w.cor = x.pai.cor
-                    x.pai.cor = Cor.PRETO
+                    antes_c4 = self.renderizar_subarvore(x.pai) if self.modo_detalhado else ""
+                    pai_ref = x.pai
+                    pai_cor_orig = pai_ref.cor
+                    self._rotacao_direita(pai_ref)
+                    pos_rot_c4 = self.renderizar_subarvore(w) if self.modo_detalhado else ""
+                    w.cor = pai_cor_orig
+                    pai_ref.cor = Cor.PRETO
                     w.esquerda.cor = Cor.PRETO
                     self.estatisticas.recoloracoes += 3
-                    self._rotacao_direita(x.pai)
                     if self.modo_detalhado:
-                        self.estatisticas.registrar_log(
-                            f"[REMOCAO RUBRO-NEGRA - CASO 4: IRMAO PRETO COM FILHO ESQUERDO VERMELHO] Rotacao a Direita no Pai ({x.pai.chave}) e resolucao do duplo preto."
+                        pos_rec_c4 = self.renderizar_subarvore(w)
+                        msg_c4 = (
+                            f"[REMOCAO RUBRO-NEGRA - CASO 4: IRMAO PRETO COM FILHO EXTERNO VERMELHO (LL)]\n"
+                            f"  * Filho esquerdo do irmao e VERMELHO.\n"
+                            f"  * Passo 1: Rotacao a Direita no Pai ({pai_ref.chave})\n"
+                            f"  * Passo 2: Ajuste de Cores (Irmao assume cor do pai, Pai e Filho Esquerdo passam a PRETO)\n\n"
+                            f"  >>> Subarvore ANTES da Rotacao e Ajuste:\n"
+                            + "\n".join("    " + l for l in antes_c4.splitlines()) +
+                            f"\n\n  >>> Passo 1: Apos Rotacao a Direita no Pai ({pai_ref.chave}) [Estrutura Girada]:\n"
+                            + "\n".join("    " + l for l in pos_rot_c4.splitlines()) +
+                            f"\n\n  >>> Passo 2: Apos Ajuste de Cores (Duplo-Preto Eliminado):\n"
+                            + "\n".join("    " + l for l in pos_rec_c4.splitlines())
                         )
+                        self.estatisticas.registrar_log(msg_c4)
                     x = self.raiz
 
         if x.cor != Cor.PRETO:
+            antes_f = self.renderizar_subarvore(x) if (self.modo_detalhado and x != self.NIL) else ""
             x.cor = Cor.PRETO
             self.estatisticas.recoloracoes += 1
+            if self.modo_detalhado and x != self.NIL:
+                depois_f = self.renderizar_subarvore(x)
+                msg_f = (
+                    f"[AJUSTE FINAL - REMOCAO FIXUP]\n"
+                    f"  * No ({x.chave}) era VERMELHO com duplo-preto absorvido -> Recolorido para PRETO.\n\n"
+                    f"  >>> Subarvore ANTES do Ajuste Final:\n"
+                    + "\n".join("    " + l for l in antes_f.splitlines()) +
+                    f"\n\n  >>> Subarvore DEPOIS do Ajuste Final:\n"
+                    + "\n".join("    " + l for l in depois_f.splitlines())
+                )
+                self.estatisticas.registrar_log(msg_f)
 
     def validar_propriedades(self) -> Tuple[bool, str]:
         if self.raiz == self.NIL:
