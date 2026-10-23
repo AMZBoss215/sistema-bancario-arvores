@@ -31,7 +31,7 @@ class ArvoreAVL:
         self.estatisticas.rotacoes_simples_direita += 1
         if self.modo_detalhado:
             self.estatisticas.registrar_log(
-                f"[AVL] Rotacao Simples a Direita (LL) em conta {k2.chave}. Nova raiz da subarvore: {k1.chave}"
+                f"[REBALANCEAMENTO AVL] Desbalanceamento no No ({k2.chave}) com FB=+2. Filho Esquerdo ({k1.chave}) com FB>=0. CASO LL -> Aplicada Rotacao Simples a Direita (SD) no no ({k2.chave}). Nova raiz local: ({k1.chave})"
             )
         return k1
 
@@ -44,14 +44,14 @@ class ArvoreAVL:
         self.estatisticas.rotacoes_simples_esquerda += 1
         if self.modo_detalhado:
             self.estatisticas.registrar_log(
-                f"[AVL] Rotacao Simples a Esquerda (RR) em conta {k1.chave}. Nova raiz da subarvore: {k2.chave}"
+                f"[REBALANCEAMENTO AVL] Desbalanceamento no No ({k1.chave}) com FB=-2. Filho Direito ({k2.chave}) com FB<=0. CASO RR -> Aplicada Rotacao Simples a Esquerda (SE) no no ({k1.chave}). Nova raiz local: ({k2.chave})"
             )
         return k2
 
     def _rotacao_dupla_esquerda_direita(self, k3: NoAVL) -> NoAVL:
         if self.modo_detalhado:
             self.estatisticas.registrar_log(
-                f"[AVL] Rotacao Dupla Esquerda-Direita (LR) em conta {k3.chave}: passo 1 (SE no filho {k3.esquerda.chave})"
+                f"[REBALANCEAMENTO AVL] Desbalanceamento no No ({k3.chave}) com FB=+2. Filho Esquerdo ({k3.esquerda.chave}) com FB<0. CASO LR -> Passo 1: Rotacao Simples a Esquerda no filho ({k3.esquerda.chave}) para alinhar em LL"
             )
         k1 = k3.esquerda
         k2 = k1.direita
@@ -63,7 +63,7 @@ class ArvoreAVL:
 
         if self.modo_detalhado:
             self.estatisticas.registrar_log(
-                f"[AVL] Rotacao Dupla Esquerda-Direita (LR) em conta {k3.chave}: passo 2 (SD no no {k3.chave})"
+                f"[REBALANCEAMENTO AVL] CASO LR -> Passo 2: Rotacao Simples a Direita no no desbalanceado ({k3.chave}). Nova raiz local promovida: ({k2.chave})"
             )
         y = k3.esquerda
         k3.esquerda = y.direita
@@ -77,7 +77,7 @@ class ArvoreAVL:
     def _rotacao_dupla_direita_esquerda(self, k1: NoAVL) -> NoAVL:
         if self.modo_detalhado:
             self.estatisticas.registrar_log(
-                f"[AVL] Rotacao Dupla Direita-Esquerda (RL) em conta {k1.chave}: passo 1 (SD no filho {k1.direita.chave})"
+                f"[REBALANCEAMENTO AVL] Desbalanceamento no No ({k1.chave}) com FB=-2. Filho Direito ({k1.direita.chave}) com FB>0. CASO RL -> Passo 1: Rotacao Simples a Direita no filho ({k1.direita.chave}) para alinhar em RR"
             )
         k3 = k1.direita
         k2 = k3.esquerda
@@ -89,7 +89,7 @@ class ArvoreAVL:
 
         if self.modo_detalhado:
             self.estatisticas.registrar_log(
-                f"[AVL] Rotacao Dupla Direita-Esquerda (RL) em conta {k1.chave}: passo 2 (SE no no {k1.chave})"
+                f"[REBALANCEAMENTO AVL] CASO RL -> Passo 2: Rotacao Simples a Esquerda no no desbalanceado ({k1.chave}). Nova raiz local promovida: ({k2.chave})"
             )
         y = k1.direita
         k1.direita = y.esquerda
@@ -300,31 +300,33 @@ class ArvoreAVL:
 
     def exibir_arvore(self) -> None:
         if self.raiz is None:
-            print("Arvore AVL vazia.")
+            print("[Arvore AVL Vazia]")
             return
 
-        def _imprimir(no: Optional[NoAVL], prefixo: str = "", eh_filho_direito: bool = True) -> None:
-            if no is not None:
-                ramo = "\\-- " if eh_filho_direito else "+-- "
-                print(f"{prefixo}{ramo}[Conta {no.chave} | h={no.altura} | FB={no.fator_balanceamento}] {no.conta.titular}")
-                novo_prefixo = prefixo + ("    " if eh_filho_direito else "|   ")
-                if no.esquerda is not None or no.direita is not None:
-                    if no.esquerda is not None:
-                        _imprimir(no.esquerda, novo_prefixo, False)
-                    else:
-                        print(f"{novo_prefixo}+-- [NIL]")
-                    if no.direita is not None:
-                        _imprimir(no.direita, novo_prefixo, True)
-                    else:
-                        print(f"{novo_prefixo}\\-- [NIL]")
+        def _imprimir_horizontal(no: Optional[NoAVL], prefixo: str = "", eh_esq: Optional[bool] = None) -> None:
+            if no is None:
+                return
 
-        print(f"=== Estrutura da Arvore AVL (Total de Nos: {self.quantidade_nos}, Altura: {self.altura}) ===")
-        print(f"[Raiz: Conta {self.raiz.chave} | h={self.raiz.altura} | FB={self.raiz.fator_balanceamento}] {self.raiz.conta.titular}")
-        if self.raiz.esquerda is not None:
-            _imprimir(self.raiz.esquerda, "", False)
-        elif self.raiz.direita is not None:
-            print("+-- [NIL]")
-        if self.raiz.direita is not None:
-            _imprimir(self.raiz.direita, "", True)
-        elif self.raiz.esquerda is not None:
-            print("\\-- [NIL]")
+            if no.direita is not None:
+                _imprimir_horizontal(no.direita, prefixo + ("|       " if eh_esq is True else "        "), False)
+            elif no.esquerda is not None:
+                print(prefixo + ("|       " if eh_esq is True else "        ") + "/---[D] (NIL)")
+
+            if eh_esq is None:
+                marcador = "[RAIZ] "
+            elif eh_esq is False:
+                marcador = "/---[D] "
+            else:
+                marcador = "\\---[E] "
+
+            fb_sinal = f"+{no.fator_balanceamento}" if no.fator_balanceamento > 0 else str(no.fator_balanceamento)
+            print(f"{prefixo}{marcador}({no.chave}) [h={no.altura}, FB={fb_sinal}] {no.conta.titular}")
+
+            if no.esquerda is not None:
+                _imprimir_horizontal(no.esquerda, prefixo + ("|       " if eh_esq is False else "        "), True)
+            elif no.direita is not None:
+                print(prefixo + ("|       " if eh_esq is False else "        ") + "\\---[E] (NIL)")
+
+        print(f"=== ESTRUTURA VISUAL DA ARVORE AVL (Total de Nos: {self.quantidade_nos}, Altura: {self.altura}) ===")
+        print("Legenda: /---[D] Subarvore Direita | \\---[E] Subarvore Esquerda | (NIL) Ramo Vazio\n")
+        _imprimir_horizontal(self.raiz)

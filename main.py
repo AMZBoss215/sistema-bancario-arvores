@@ -136,11 +136,16 @@ class SistemaBancarioCLI:
         if sucesso:
             print(f"\n[SUCESSO] Conta {numero} ({titular}) inserida na estrutura com sucesso!")
             if self.modo_detalhado:
-                print("\n--- Eventos do Modo Detalhado ---")
+                print("\n" + "=" * 70)
+                print("           PASSO A PASSO DA OPERACAO (MODO DETALHADO)")
+                print("=" * 70)
                 logs_novos = self.arvore_ativa.estatisticas.logs_detalhados[logs_antes:]
-                for log in logs_novos:
-                    print(" ", log)
-                print("\n--- Estrutura Resultante Apos Rebalanceamento ---")
+                if not logs_novos:
+                    print("  -> Operacao concluida sem necessidade de rebalanceamento (arvore equilibrada).")
+                else:
+                    for log in logs_novos:
+                        print("  " + log)
+                print("\n--- Estrutura Resultante Apos a Operacao ---")
                 self.arvore_ativa.exibir_arvore()
         else:
             print(f"\n[AVISO] A conta com numero {numero} ja existe no sistema.")
@@ -192,11 +197,16 @@ class SistemaBancarioCLI:
         if removida is not None:
             print(f"\n[SUCESSO] Conta {numero} ({removida.titular}) removida com sucesso!")
             if self.modo_detalhado:
-                print("\n--- Eventos de Rebalanceamento ---")
+                print("\n" + "=" * 70)
+                print("           PASSO A PASSO DA REMOCAO (MODO DETALHADO)")
+                print("=" * 70)
                 logs_novos = self.arvore_ativa.estatisticas.logs_detalhados[logs_antes:]
-                for log in logs_novos:
-                    print(" ", log)
-                print("\n--- Estrutura Resultante Apos Rebalanceamento ---")
+                if not logs_novos:
+                    print("  -> Remocao concluida sem necessidade de rebalanceamento adicional.")
+                else:
+                    for log in logs_novos:
+                        print("  " + log)
+                print("\n--- Estrutura Resultante Apos a Remocao ---")
                 self.arvore_ativa.exibir_arvore()
         else:
             print(f"\n[ERRO] A conta {numero} nao foi encontrada para remocao.")
