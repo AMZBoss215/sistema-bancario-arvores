@@ -144,8 +144,8 @@ class SistemaBancarioCLI:
                     print("  -> Operacao concluida sem necessidade de rebalanceamento (arvore equilibrada).")
                 else:
                     for log in logs_novos:
-                        print("  " + log)
-                print("\n--- Estrutura Resultante Apos a Operacao ---")
+                        print(log + "\n")
+                print("--- Estrutura Resultante Apos a Operacao ---")
                 self.arvore_ativa.exibir_arvore()
         else:
             print(f"\n[AVISO] A conta com numero {numero} ja existe no sistema.")
@@ -205,8 +205,8 @@ class SistemaBancarioCLI:
                     print("  -> Remocao concluida sem necessidade de rebalanceamento adicional.")
                 else:
                     for log in logs_novos:
-                        print("  " + log)
-                print("\n--- Estrutura Resultante Apos a Remocao ---")
+                        print(log + "\n")
+                print("--- Estrutura Resultante Apos a Remocao ---")
                 self.arvore_ativa.exibir_arvore()
         else:
             print(f"\n[ERRO] A conta {numero} nao foi encontrada para remocao.")
@@ -262,6 +262,15 @@ class SistemaBancarioCLI:
         print(f"TOTAL ACUMULADO DE ROTACOES      : {est.total_rotacoes}")
         print(f"TOTAL DE RECOLORACOES            : {est.recoloracoes}")
         print(f"TOTAL DE NOS VISITADOS EM BUSCAS : {est.nos_visitados}")
+        if est.logs_detalhados:
+            print("-" * 50)
+            ver = input("\nDeseja visualizar todos os logs detalhados registrados ate aqui? (s/N): ").strip().lower()
+            if ver in ("s", "sim", "y"):
+                print("\n" + "=" * 70)
+                print("           HISTORICO DE OPERACOES DETALHADAS REGISTRADAS")
+                print("=" * 70)
+                for log in est.logs_detalhados:
+                    print(log + "\n" + "-" * 70)
         self.pausar()
 
     def opcao_8_validar_propriedades(self) -> None:

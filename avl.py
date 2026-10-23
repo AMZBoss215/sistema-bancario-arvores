@@ -22,82 +22,169 @@ class ArvoreAVL:
     def esta_vazia(self) -> bool:
         return self.raiz is None
 
+    @staticmethod
+    def renderizar_subarvore(raiz_local: Optional[NoAVL], marcador_raiz: str = "[RAIZ]") -> str:
+        linhas: List[str] = []
+
+        def _imprimir(no: Optional[NoAVL], prefixo: str = "", eh_esq: Optional[bool] = None) -> None:
+            if no is None:
+                return
+
+            if no.direita is not None:
+                _imprimir(no.direita, prefixo + ("|       " if eh_esq is True else "        "), False)
+
+            if eh_esq is None:
+                marcador = f"{marcador_raiz} "
+            elif eh_esq is False:
+                marcador = "/---[D] "
+            else:
+                marcador = "\\---[E] "
+
+            fb_sinal = f"+{no.fator_balanceamento}" if no.fator_balanceamento > 0 else str(no.fator_balanceamento)
+            linhas.append(f"{prefixo}{marcador}({no.chave}) [h={no.altura}, FB={fb_sinal}] {no.conta.titular}")
+
+            if no.esquerda is not None:
+                _imprimir(no.esquerda, prefixo + ("|       " if eh_esq is False else "        "), True)
+
+        _imprimir(raiz_local)
+        return "\n".join(linhas)
+
     def _rotacao_simples_direita(self, k2: NoAVL) -> NoAVL:
+        antes_txt = self.renderizar_subarvore(k2, "[RAIZ]") if self.modo_detalhado else ""
         k1 = k2.esquerda
+        fb_filho = k1.fator_balanceamento
         k2.esquerda = k1.direita
         k1.direita = k2
         k2.atualizar_altura()
         k1.atualizar_altura()
         self.estatisticas.rotacoes_simples_direita += 1
         if self.modo_detalhado:
-            self.estatisticas.registrar_log(
-                f"[REBALANCEAMENTO AVL] Desbalanceamento no No ({k2.chave}) com FB=+2. Filho Esquerdo ({k1.chave}) com FB>=0. CASO LL -> Aplicada Rotacao Simples a Direita (SD) no no ({k2.chave}). Nova raiz local: ({k1.chave})"
+            depois_txt = self.renderizar_subarvore(k1, "[RAIZ]")
+            linhas_antes = "\n".join("    " + linha for linha in antes_txt.splitlines())
+            linhas_depois = "\n".join("    " + linha for linha in depois_txt.splitlines())
+            fb_filho_sinal = f"+{fb_filho}" if fb_filho > 0 else str(fb_filho)
+            msg = (
+                f"[REBALANCEAMENTO AVL - CASO LL]\n"
+                f"  * Desbalanceamento detectado no No ({k2.chave}) com FB=+2\n"
+                f"  * Filho Esquerdo ({k1.chave}) com FB={fb_filho_sinal} (>= 0)\n"
+                f"  * Tipo de Rotacao: Rotacao Simples a Direita (SD) no No ({k2.chave})\n"
+                f"  * Nova raiz local promovida: No ({k1.chave})\n\n"
+                f"  >>> Subarvore ANTES da Rotacao (Desbalanceada):\n"
+                f"{linhas_antes}\n\n"
+                f"  >>> Subarvore DEPOIS da Rotacao (Balanceada):\n"
+                f"{linhas_depois}"
             )
+            self.estatisticas.registrar_log(msg)
         return k1
 
     def _rotacao_simples_esquerda(self, k1: NoAVL) -> NoAVL:
+        antes_txt = self.renderizar_subarvore(k1, "[RAIZ]") if self.modo_detalhado else ""
         k2 = k1.direita
+        fb_filho = k2.fator_balanceamento
         k1.direita = k2.esquerda
         k2.esquerda = k1
         k1.atualizar_altura()
         k2.atualizar_altura()
         self.estatisticas.rotacoes_simples_esquerda += 1
         if self.modo_detalhado:
-            self.estatisticas.registrar_log(
-                f"[REBALANCEAMENTO AVL] Desbalanceamento no No ({k1.chave}) com FB=-2. Filho Direito ({k2.chave}) com FB<=0. CASO RR -> Aplicada Rotacao Simples a Esquerda (SE) no no ({k1.chave}). Nova raiz local: ({k2.chave})"
+            depois_txt = self.renderizar_subarvore(k2, "[RAIZ]")
+            linhas_antes = "\n".join("    " + linha for linha in antes_txt.splitlines())
+            linhas_depois = "\n".join("    " + linha for linha in depois_txt.splitlines())
+            fb_filho_sinal = f"+{fb_filho}" if fb_filho > 0 else str(fb_filho)
+            msg = (
+                f"[REBALANCEAMENTO AVL - CASO RR]\n"
+                f"  * Desbalanceamento detectado no No ({k1.chave}) com FB=-2\n"
+                f"  * Filho Direito ({k2.chave}) com FB={fb_filho_sinal} (<= 0)\n"
+                f"  * Tipo de Rotacao: Rotacao Simples a Esquerda (SE) no No ({k1.chave})\n"
+                f"  * Nova raiz local promovida: No ({k2.chave})\n\n"
+                f"  >>> Subarvore ANTES da Rotacao (Desbalanceada):\n"
+                f"{linhas_antes}\n\n"
+                f"  >>> Subarvore DEPOIS da Rotacao (Balanceada):\n"
+                f"{linhas_depois}"
             )
+            self.estatisticas.registrar_log(msg)
         return k2
 
     def _rotacao_dupla_esquerda_direita(self, k3: NoAVL) -> NoAVL:
-        if self.modo_detalhado:
-            self.estatisticas.registrar_log(
-                f"[REBALANCEAMENTO AVL] Desbalanceamento no No ({k3.chave}) com FB=+2. Filho Esquerdo ({k3.esquerda.chave}) com FB<0. CASO LR -> Passo 1: Rotacao Simples a Esquerda no filho ({k3.esquerda.chave}) para alinhar em LL"
-            )
+        antes_txt = self.renderizar_subarvore(k3, "[RAIZ]") if self.modo_detalhado else ""
         k1 = k3.esquerda
+        fb_filho = k1.fator_balanceamento
         k2 = k1.direita
         k1.direita = k2.esquerda
         k2.esquerda = k1
         k1.atualizar_altura()
         k2.atualizar_altura()
         k3.esquerda = k2
+        k3.atualizar_altura()
+        passo1_txt = self.renderizar_subarvore(k3, "[RAIZ]") if self.modo_detalhado else ""
 
-        if self.modo_detalhado:
-            self.estatisticas.registrar_log(
-                f"[REBALANCEAMENTO AVL] CASO LR -> Passo 2: Rotacao Simples a Direita no no desbalanceado ({k3.chave}). Nova raiz local promovida: ({k2.chave})"
-            )
         y = k3.esquerda
         k3.esquerda = y.direita
         y.direita = k3
         k3.atualizar_altura()
         y.atualizar_altura()
-
         self.estatisticas.rotacoes_duplas_esq_dir += 1
+        if self.modo_detalhado:
+            depois_txt = self.renderizar_subarvore(y, "[RAIZ]")
+            linhas_antes = "\n".join("    " + linha for linha in antes_txt.splitlines())
+            linhas_p1 = "\n".join("    " + linha for linha in passo1_txt.splitlines())
+            linhas_depois = "\n".join("    " + linha for linha in depois_txt.splitlines())
+            fb_filho_sinal = f"+{fb_filho}" if fb_filho > 0 else str(fb_filho)
+            msg = (
+                f"[REBALANCEAMENTO AVL - CASO LR (ROTACAO DUPLA ESQUERDA-DIREITA)]\n"
+                f"  * Desbalanceamento detectado no No ({k3.chave}) com FB=+2\n"
+                f"  * Filho Esquerdo ({k1.chave}) com FB={fb_filho_sinal} (< 0)\n"
+                f"  * Passo 1: Rotacao Simples a Esquerda no filho ({k1.chave}) -> Alinha em Caso LL\n"
+                f"  * Passo 2: Rotacao Simples a Direita no No ({k3.chave}) -> Promove No ({y.chave})\n\n"
+                f"  >>> Subarvore ANTES da Correcao (Desbalanceada em LR):\n"
+                f"{linhas_antes}\n\n"
+                f"  >>> Subarvore APOS PASSO 1 (Alinhamento em LL):\n"
+                f"{linhas_p1}\n\n"
+                f"  >>> Subarvore DEPOIS DO PASSO 2 (Balanceamento Concluido):\n"
+                f"{linhas_depois}"
+            )
+            self.estatisticas.registrar_log(msg)
         return y
 
     def _rotacao_dupla_direita_esquerda(self, k1: NoAVL) -> NoAVL:
-        if self.modo_detalhado:
-            self.estatisticas.registrar_log(
-                f"[REBALANCEAMENTO AVL] Desbalanceamento no No ({k1.chave}) com FB=-2. Filho Direito ({k1.direita.chave}) com FB>0. CASO RL -> Passo 1: Rotacao Simples a Direita no filho ({k1.direita.chave}) para alinhar em RR"
-            )
+        antes_txt = self.renderizar_subarvore(k1, "[RAIZ]") if self.modo_detalhado else ""
         k3 = k1.direita
+        fb_filho = k3.fator_balanceamento
         k2 = k3.esquerda
         k3.esquerda = k2.direita
         k2.direita = k3
         k3.atualizar_altura()
         k2.atualizar_altura()
         k1.direita = k2
+        k1.atualizar_altura()
+        passo1_txt = self.renderizar_subarvore(k1, "[RAIZ]") if self.modo_detalhado else ""
 
-        if self.modo_detalhado:
-            self.estatisticas.registrar_log(
-                f"[REBALANCEAMENTO AVL] CASO RL -> Passo 2: Rotacao Simples a Esquerda no no desbalanceado ({k1.chave}). Nova raiz local promovida: ({k2.chave})"
-            )
         y = k1.direita
         k1.direita = y.esquerda
         y.esquerda = k1
         k1.atualizar_altura()
         y.atualizar_altura()
-
         self.estatisticas.rotacoes_duplas_dir_esq += 1
+        if self.modo_detalhado:
+            depois_txt = self.renderizar_subarvore(y, "[RAIZ]")
+            linhas_antes = "\n".join("    " + linha for linha in antes_txt.splitlines())
+            linhas_p1 = "\n".join("    " + linha for linha in passo1_txt.splitlines())
+            linhas_depois = "\n".join("    " + linha for linha in depois_txt.splitlines())
+            fb_filho_sinal = f"+{fb_filho}" if fb_filho > 0 else str(fb_filho)
+            msg = (
+                f"[REBALANCEAMENTO AVL - CASO RL (ROTACAO DUPLA DIREITA-ESQUERDA)]\n"
+                f"  * Desbalanceamento detectado no No ({k1.chave}) com FB=-2\n"
+                f"  * Filho Direito ({k3.chave}) com FB={fb_filho_sinal} (> 0)\n"
+                f"  * Passo 1: Rotacao Simples a Direita no filho ({k3.chave}) -> Alinha em Caso RR\n"
+                f"  * Passo 2: Rotacao Simples a Esquerda no No ({k1.chave}) -> Promove No ({y.chave})\n\n"
+                f"  >>> Subarvore ANTES da Correcao (Desbalanceada em RL):\n"
+                f"{linhas_antes}\n\n"
+                f"  >>> Subarvore APOS PASSO 1 (Alinhamento em RR):\n"
+                f"{linhas_p1}\n\n"
+                f"  >>> Subarvore DEPOIS DO PASSO 2 (Balanceamento Concluido):\n"
+                f"{linhas_depois}"
+            )
+            self.estatisticas.registrar_log(msg)
         return y
 
     def _rebalancear(self, no: NoAVL) -> NoAVL:
@@ -309,8 +396,6 @@ class ArvoreAVL:
 
             if no.direita is not None:
                 _imprimir_horizontal(no.direita, prefixo + ("|       " if eh_esq is True else "        "), False)
-            elif no.esquerda is not None:
-                print(prefixo + ("|       " if eh_esq is True else "        ") + "/---[D] (NIL)")
 
             if eh_esq is None:
                 marcador = "[RAIZ] "
@@ -324,9 +409,7 @@ class ArvoreAVL:
 
             if no.esquerda is not None:
                 _imprimir_horizontal(no.esquerda, prefixo + ("|       " if eh_esq is False else "        "), True)
-            elif no.direita is not None:
-                print(prefixo + ("|       " if eh_esq is False else "        ") + "\\---[E] (NIL)")
 
         print(f"=== ESTRUTURA VISUAL DA ARVORE AVL (Total de Nos: {self.quantidade_nos}, Altura: {self.altura}) ===")
-        print("Legenda: /---[D] Subarvore Direita | \\---[E] Subarvore Esquerda | (NIL) Ramo Vazio\n")
+        print("Legenda: /---[D] Subarvore Direita | \\---[E] Subarvore Esquerda\n")
         _imprimir_horizontal(self.raiz)
