@@ -67,6 +67,19 @@ class SistemaBancarioCLI:
             except ValueError:
                 print("[Erro] Formato monetario invalido. Digite um numero como 1500.50 ou 1500,50.")
 
+    def ler_tipo_conta(self) -> str:
+        while True:
+            print("\nTipos disponiveis: [1] Corrente | [2] Poupanca | [3] Salario")
+            escolha = input("Selecione o tipo (1/2/3) [padrao 1]: ").strip()
+            if not escolha or escolha == "1":
+                return "Corrente"
+            elif escolha == "2":
+                return "Poupanca"
+            elif escolha == "3":
+                return "Salario"
+            else:
+                print("[Erro] Opcao invalida! Digite apenas 1 para Corrente, 2 para Poupanca ou 3 para Salario.")
+
     def opcao_1_selecionar_estrutura(self) -> None:
         self.cabecalho()
         print(">>> 1. SELECIONAR ESTRUTURA (AVL / RUBRO-NEGRA)")
@@ -97,6 +110,12 @@ class SistemaBancarioCLI:
             self.pausar()
             return
 
+        if self.arvore_ativa.buscar(numero) is not None:
+            print(f"\n[AVISO] A conta com numero {numero} ja existe no sistema!")
+            print("Conforme a politica do projeto, chaves duplicadas sao rejeitadas. Cadastro cancelado.")
+            self.pausar()
+            return
+
         titular = input("Nome do titular: ").strip()
         if not titular:
             titular = f"Titular {numero}"
@@ -105,10 +124,7 @@ class SistemaBancarioCLI:
         if not agencia:
             agencia = "0001"
 
-        print("\nTipos disponiveis: [1] Corrente | [2] Poupanca | [3] Salario")
-        tipo_escolhido = input("Selecione o tipo (1/2/3) [padrao 1]: ").strip()
-        mapa_tipos = {"1": "Corrente", "2": "Poupanca", "3": "Salario"}
-        tipo = mapa_tipos.get(tipo_escolhido, "Corrente")
+        tipo = self.ler_tipo_conta()
 
         saldo = self.ler_saldo("Saldo inicial (R$): ")
 
